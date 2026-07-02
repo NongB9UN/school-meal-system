@@ -496,6 +496,11 @@ function KitchenDashboard({ submissions }) {
       {/* สรุปอนุบาล (รถ) */}
       <div>
         <p className="text-sm font-bold text-gray-500 mb-2 px-1">🧸 อนุบาล</p>
+        <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4 text-center mb-3">
+          <p className="text-orange-600 font-semibold text-sm mb-1">ยอดรวมอนุบาล</p>
+          <p className="text-4xl font-black text-orange-700">{total1 + total2}</p>
+          <p className="text-orange-400 text-xs mt-1">{kinder.length} ห้อง</p>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 text-center">
             <p className="text-blue-600 font-semibold text-sm mb-1">🚗 รถคันที่ 1</p>
