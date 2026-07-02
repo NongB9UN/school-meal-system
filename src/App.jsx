@@ -91,6 +91,20 @@ function allergiesToText(allergies) {
   return allergies.map(a => `${a.name}:${a.count}`).join(", ");
 }
 
+// แปลง text "อิสลาม:2, แพ้ไข่:1" กลับเป็น [{name, count}]
+function textToAllergies(text) {
+  if (!text || typeof text !== "string") return [];
+  return text.split(",").map(part => {
+    const [name, count] = part.split(":");
+    return { name: (name || "").trim(), count: parseInt(count) || 1 };
+  }).filter(a => a.name);
+}
+
+// วันที่วันนี้แบบไทย d/m/yyyy(พ.ศ.) ให้ตรงกับที่เก็บใน Sheet
+function todayThai() {
+  return new Date().toLocaleDateString("th-TH");
+}
+
 // ─── Confirm Modal ───────────────────────────────────────────────────────────
 function ConfirmModal({ classroom, level, total, truck, allergies, teacherName, onConfirm, onCancel, sending }) {
   return (
@@ -451,7 +465,7 @@ function TeacherForm({ onSubmit, submissions, user }) {
 }
 
 // ─── Kitchen Dashboard ───────────────────────────────────────────────────────
-function KitchenDashboard({ submissions }) {
+function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
   const kinder = submissions.filter(s => s.level === "อนุบาล");
   const primary = submissions.filter(s => s.level === "ประถม");
 
@@ -474,9 +488,23 @@ function KitchenDashboard({ submissions }) {
 
   return (
     <div className="flex flex-col gap-4 pb-8">
+      {/* แถบสถานะ sync */}
+      <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2 shadow-sm border border-green-100">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${loading ? "bg-yellow-400 animate-pulse" : "bg-green-500"}`} />
+          <span className="text-xs text-gray-500">
+            {loading ? "กำลังซิงค์ข้อมูล..." : lastSync ? `อัปเดตล่าสุด ${fmtTime(lastSync)}` : "รอข้อมูล"}
+          </span>
+        </div>
+        <button onClick={onRefresh} disabled={loading}
+          className="text-xs text-green-600 font-semibold px-3 py-1 rounded-lg bg-green-50 disabled:opacity-40">
+          🔄 รีเฟรช
+        </button>
+      </div>
+
       {/* Header + Progress */}
       <div className="bg-gradient-to-r from-green-600 to-teal-500 rounded-2xl p-5 text-white shadow-lg">
-        <p className="text-xs opacity-80 mb-1">แดชบอร์ดห้องครัว</p>
+        <p className="text-xs opacity-80 mb-1">แดชบอร์ดห้องครัว · ข้อมูลวันนี้</p>
         <div className="flex items-end justify-between">
           <div>
             <p className="text-4xl font-black">{totalAll}</p>
@@ -639,11 +667,67 @@ function LoadingScreen() {
   );
 }
 
+// แปลงข้อมูลดิบจาก Sheet → รูปแบบที่ Dashboard ใช้
+// กรองเฉพาะวันนี้ + เอาแถวล่าสุดของแต่ละห้อง (ตรรกะ A)
+function processSheetData(raw) {
+  const today = todayThai();
+  const byClassroom = {}; // ห้อง → แถวล่าสุด
+
+  ["อนุบาล", "ประถม"].forEach(levelKey => {
+    const rows = raw[levelKey] || [];
+    rows.forEach(r => {
+      // เทียบวันที่แบบไทย (ตัดช่องว่างกันพลาด)
+      if (String(r["วันที่"]).trim() !== today) return;
+      const classroom = r["ห้อง"];
+      if (!classroom) return;
+      // แถวหลังทับแถวก่อน = ได้แถวล่าสุดของห้องนั้นเสมอ
+      byClassroom[classroom] = {
+        classroom,
+        level: r["ระดับชั้น"] || levelKey,
+        total: parseInt(r["จำนวนกิน"]) || 0,
+        truck: parseInt(r["รถ"]) || 1,
+        allergies: textToAllergies(r["แพ้อาหาร"]),
+        teacherName: r["ชื่อครู"] || "ไม่ระบุ",
+        time: new Date(),      // เวลาแสดงผลคร่าวๆ (ข้อมูลจริงอยู่ใน Sheet)
+        edited: false,
+      };
+    });
+  });
+
+  return Object.values(byClassroom);
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
   const { user, ready } = useLiff();
   const [tab, setTab]   = useState("teacher");
-  const [submissions, setSubmissions] = useState([]);
+  const [submissions, setSubmissions] = useState([]);      // ฝั่งครู (state ในเครื่อง)
+  const [liveData, setLiveData]       = useState([]);      // ฝั่งห้องครัว (จาก Sheets)
+  const [loadingLive, setLoadingLive] = useState(false);
+  const [lastSync, setLastSync]       = useState(null);
+
+  // ดึงข้อมูลจาก Sheets
+  const fetchLive = async () => {
+    setLoadingLive(true);
+    try {
+      const res = await fetch(SHEET_API_URL);
+      const raw = await res.json();
+      setLiveData(processSheetData(raw));
+      setLastSync(new Date());
+    } catch {
+      // เงียบไว้ ไม่รบกวนจอครัว — รอบหน้าค่อยลองใหม่
+    } finally {
+      setLoadingLive(false);
+    }
+  };
+
+  // เปิดแท็บห้องครัว → ดึงทันที + refresh ทุก 30 วิ
+  useEffect(() => {
+    if (tab !== "kitchen") return;
+    fetchLive();
+    const timer = setInterval(fetchLive, 30000);
+    return () => clearInterval(timer);
+  }, [tab]);
 
   if (!ready) return <LoadingScreen />;
 
@@ -652,7 +736,7 @@ export default function App() {
   };
 
   const allClassrooms = [...KINDERGARTEN_CLASSROOMS, ...PRIMARY_CLASSROOMS];
-  const pending = allClassrooms.length - submissions.length;
+  const pending = allClassrooms.length - liveData.length;
 
   return (
     <div className="min-h-screen bg-orange-50">
@@ -666,7 +750,7 @@ export default function App() {
             <button onClick={() => setTab("kitchen")}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all relative ${tab==="kitchen" ? "bg-green-500 text-white shadow-sm" : "text-gray-400"}`}>
               👨‍🍳 ห้องครัว
-              {pending > 0 && submissions.length > 0 && (
+              {pending > 0 && liveData.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{pending}</span>
               )}
             </button>
@@ -676,7 +760,7 @@ export default function App() {
         <div className="px-4 pt-2">
           {tab === "teacher"
             ? <TeacherForm onSubmit={handleSubmit} submissions={submissions} user={user} />
-            : <KitchenDashboard submissions={submissions} />
+            : <KitchenDashboard submissions={liveData} loading={loadingLive} lastSync={lastSync} onRefresh={fetchLive} />
           }
         </div>
       </div>
