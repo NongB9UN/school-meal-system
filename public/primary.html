@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>จอใหญ่ – ประถม</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #6366f1;
+      --allergy: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Sarabun", "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    body { padding: 2vh 2vw; display: flex; flex-direction: column; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5vh;
+    }
+    .title {
+      font-size: 4.2vh; font-weight: 900;
+      color: var(--primary);
+      display: flex; align-items: center; gap: 1.2vw;
+    }
+    .title .badge {
+      background: var(--primary); color: #fff;
+      font-size: 2.4vh; padding: 0.4vh 1.4vw; border-radius: 999px;
+      font-weight: 700;
+    }
+    .status {
+      display: flex; align-items: center; gap: 1vw;
+      font-size: 2.1vh; color: var(--muted);
+    }
+    .dot { width: 1.4vh; height: 1.4vh; border-radius: 50%; background: #22c55e; }
+    .dot.loading { background: #eab308; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .nav-link {
+      background: var(--card); color: var(--text);
+      text-decoration: none; font-size: 2vh; font-weight: 700;
+      padding: 1vh 1.6vw; border-radius: 12px; border: 2px solid #334155;
+    }
+
+    .totals { display: flex; gap: 1.5vw; margin-bottom: 1.5vh; }
+    .total-card {
+      flex: 1; background: var(--card); border-radius: 20px; padding: 2vh 1.5vw;
+      display: flex; flex-direction: column; align-items: center;
+      border: 3px solid var(--primary);
+    }
+    .total-card .label { font-size: 2.6vh; color: var(--muted); font-weight: 700; margin-bottom: 0.5vh; }
+    .total-card .num   { font-size: 9vh; font-weight: 900; line-height: 1; color: var(--primary); }
+    .total-card .sub   { font-size: 2vh; color: var(--muted); margin-top: 0.5vh; }
+
+    .bottom { flex: 1; display: flex; gap: 1.5vw; min-height: 0; }
+    .rooms-col { flex: 2; background: var(--card); border-radius: 20px; padding: 1.5vh 1.2vw; display: flex; flex-direction: column; min-height: 0; }
+    .rooms-col h2 {
+      font-size: 2.8vh; font-weight: 800; color: var(--primary);
+      margin-bottom: 1vh; padding-bottom: 1vh; border-bottom: 2px solid #334155;
+      display: flex; justify-content: space-between;
+    }
+    .rooms-col h2 .cnt { font-size: 3.4vh; font-weight: 900; }
+    .room-grid {
+      flex: 1; overflow: hidden;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8vh 1.5vw; align-content: start;
+    }
+    .room-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 2.6vh; padding: 0.6vh 0.8vw; background: #0f172a; border-radius: 10px;
+    }
+    .room-row .rname { font-weight: 700; }
+    .room-row .rnum  { font-weight: 900; font-size: 3vh; color: var(--primary); }
+
+    .allergy-col {
+      flex: 1; background: var(--card); border-radius: 20px; padding: 1.5vh 1.2vw;
+      display: flex; flex-direction: column; min-height: 0; border: 3px solid var(--allergy);
+    }
+    .allergy-col h2 {
+      font-size: 2.8vh; font-weight: 800; color: var(--allergy);
+      margin-bottom: 1vh; padding-bottom: 1vh; border-bottom: 2px solid #334155;
+    }
+    .allergy-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0.8vh; }
+    .allergy-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 2.6vh; padding: 0.7vh 0.9vw; background: #0f172a; border-radius: 10px;
+    }
+    .allergy-row .aname { font-weight: 700; }
+    .allergy-row .anum { font-weight: 900; font-size: 3vh; color: var(--allergy); }
+    .empty { color: var(--muted); font-size: 2.2vh; text-align: center; margin-top: 2vh; }
+    .clock { font-size: 2.1vh; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="title">🎒 ประถม <span class="badge">จอครัว</span></div>
+    <div class="status">
+      <span class="clock" id="clock"></span>
+      <span class="dot" id="dot"></span>
+      <span id="syncText">กำลังโหลด...</span>
+      <a class="nav-link" href="./kinder.html">← ไปจออนุบาล</a>
+    </div>
+  </div>
+
+  <div class="totals">
+    <div class="total-card">
+      <div class="label">ยอดรวมประถม</div>
+      <div class="num" id="sumTotal">0</div>
+      <div class="sub" id="sumRooms">0 ห้อง</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="rooms-col">
+      <h2>🎒 รายห้องประถม <span class="cnt" id="roomCnt">0 คน</span></h2>
+      <div class="room-grid" id="roomList"></div>
+    </div>
+    <div class="allergy-col">
+      <h2>⚠️ รายการพิเศษวันนี้</h2>
+      <div class="allergy-list" id="allergyList"></div>
+    </div>
+  </div>
+
+<script>
+  const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzdfBIHtTaaalPHKk_BcNyUj5edtuD5oYwLzgzsGHH5sKUCROxXHZ50qMbgddUlhFN7hg/exec";
+  const REFRESH_MS = 60000;
+
+  function todayThai() { return new Date().toLocaleDateString("th-TH"); }
+  function textToAllergies(text) {
+    if (!text || typeof text !== "string") return [];
+    return text.split(",").map(p => {
+      const [name, count] = p.split(":");
+      return { name:(name||"").trim(), count: parseInt(count)||1 };
+    }).filter(a => a.name);
+  }
+  function fmtTime(d){ return d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}); }
+
+  function processPrimary(raw) {
+    const today = todayThai();
+    const byRoom = {};
+    (raw["ประถม"] || []).forEach(r => {
+      if (String(r["วันที่"]).trim() !== today) return;
+      const room = r["ห้อง"];
+      if (!room) return;
+      byRoom[room] = {
+        room,
+        total: parseInt(r["จำนวนกิน"]) || 0,
+        allergies: textToAllergies(r["แพ้อาหาร"]),
+      };
+    });
+    return Object.values(byRoom);
+  }
+
+  function render(rows) {
+    const sum = rows.reduce((s,r)=>s+r.total,0);
+    document.getElementById("sumTotal").textContent = sum;
+    document.getElementById("sumRooms").textContent = rows.length + " ห้อง";
+    document.getElementById("roomCnt").textContent = sum + " คน";
+
+    document.getElementById("roomList").innerHTML = rows.length
+      ? rows.map(r => `<div class="room-row"><span class="rname">${r.room}</span><span class="rnum">${r.total}</span></div>`).join("")
+      : `<div class="empty">— ยังไม่มีข้อมูล —</div>`;
+
+    const amap = {};
+    rows.forEach(r => r.allergies.forEach(a => { amap[a.name]=(amap[a.name]||0)+a.count; }));
+    const entries = Object.entries(amap);
+    document.getElementById("allergyList").innerHTML = entries.length
+      ? entries.map(([n,c])=>`<div class="allergy-row"><span class="aname">${n}</span><span class="anum">${c}</span></div>`).join("")
+      : `<div class="empty">— ไม่มีรายการพิเศษ —</div>`;
+  }
+
+  async function fetchData() {
+    const dot = document.getElementById("dot");
+    const syncText = document.getElementById("syncText");
+    dot.classList.add("loading");
+    syncText.textContent = "กำลังซิงค์...";
+    try {
+      const res = await fetch(SHEET_API_URL);
+      const raw = await res.json();
+      render(processPrimary(raw));
+      syncText.textContent = "อัปเดต " + fmtTime(new Date());
+    } catch(e) {
+      syncText.textContent = "เชื่อมต่อไม่ได้ – จะลองใหม่";
+    } finally {
+      dot.classList.remove("loading");
+    }
+  }
+
+  function tickClock() {
+    document.getElementById("clock").textContent =
+      new Date().toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long"});
+  }
+
+  tickClock();
+  fetchData();
+  setInterval(fetchData, REFRESH_MS);
+  setInterval(tickClock, 60000);
+</script>
+</body>
+</html>
