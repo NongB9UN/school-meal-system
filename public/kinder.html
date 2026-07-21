@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>จอใหญ่ – อนุบาล</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --kinder: #f97316;
+      --truck1: #3b82f6;
+      --truck2: #22c55e;
+      --allergy: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Sarabun", "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    body { padding: 2vh 2vw; display: flex; flex-direction: column; }
+
+    /* แถบบน */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5vh;
+    }
+    .title {
+      font-size: 4.2vh; font-weight: 900;
+      color: var(--kinder);
+      display: flex; align-items: center; gap: 1.2vw;
+    }
+    .title .badge {
+      background: var(--kinder); color: #fff;
+      font-size: 2.4vh; padding: 0.4vh 1.4vw; border-radius: 999px;
+      font-weight: 700;
+    }
+    .status {
+      display: flex; align-items: center; gap: 1vw;
+      font-size: 2.1vh; color: var(--muted);
+    }
+    .dot {
+      width: 1.4vh; height: 1.4vh; border-radius: 50%;
+      background: var(--truck2);
+    }
+    .dot.loading { background: #eab308; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .nav-link {
+      background: var(--card); color: var(--text);
+      text-decoration: none; font-size: 2vh; font-weight: 700;
+      padding: 1vh 1.6vw; border-radius: 12px;
+      border: 2px solid #334155;
+    }
+
+    /* การ์ดยอดรวมด้านบน */
+    .totals { display: flex; gap: 1.5vw; margin-bottom: 1.5vh; }
+    .total-card {
+      flex: 1; background: var(--card);
+      border-radius: 20px; padding: 2vh 1.5vw;
+      display: flex; flex-direction: column; align-items: center;
+      border: 3px solid transparent;
+    }
+    .total-card.sum   { border-color: var(--kinder); }
+    .total-card.t1    { border-color: var(--truck1); }
+    .total-card.t2    { border-color: var(--truck2); }
+    .total-card .label { font-size: 2.6vh; color: var(--muted); font-weight: 700; margin-bottom: 0.5vh; }
+    .total-card .num   { font-size: 9vh; font-weight: 900; line-height: 1; }
+    .total-card .sub   { font-size: 2vh; color: var(--muted); margin-top: 0.5vh; }
+    .sum .num { color: var(--kinder); }
+    .t1 .num  { color: var(--truck1); }
+    .t2 .num  { color: var(--truck2); }
+
+    /* ส่วนล่าง: รายห้อง + แพ้อาหาร */
+    .bottom { flex: 1; display: flex; gap: 1.5vw; min-height: 0; }
+    .rooms-col { flex: 2; display: flex; gap: 1.5vw; min-height: 0; }
+    .room-group {
+      flex: 1; background: var(--card); border-radius: 20px;
+      padding: 1.5vh 1.2vw; display: flex; flex-direction: column; min-height: 0;
+    }
+    .room-group h2 {
+      font-size: 2.8vh; font-weight: 800; margin-bottom: 1vh;
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 1vh; border-bottom: 2px solid #334155;
+    }
+    .room-group.g1 h2 { color: var(--truck1); }
+    .room-group.g2 h2 { color: var(--truck2); }
+    .room-group h2 .cnt { font-size: 3.4vh; font-weight: 900; }
+    .room-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0.8vh; }
+    .room-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 2.6vh; padding: 0.6vh 0.8vw;
+      background: #0f172a; border-radius: 10px;
+    }
+    .room-row .rname { font-weight: 700; }
+    .room-row .rnum  { font-weight: 900; font-size: 3vh; }
+    .g1 .room-row .rnum { color: var(--truck1); }
+    .g2 .room-row .rnum { color: var(--truck2); }
+
+    /* คอลัมน์แพ้อาหาร */
+    .allergy-col {
+      flex: 1; background: var(--card); border-radius: 20px;
+      padding: 1.5vh 1.2vw; display: flex; flex-direction: column; min-height: 0;
+      border: 3px solid var(--allergy);
+    }
+    .allergy-col h2 {
+      font-size: 2.8vh; font-weight: 800; color: var(--allergy);
+      margin-bottom: 1vh; padding-bottom: 1vh; border-bottom: 2px solid #334155;
+    }
+    .allergy-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0.8vh; }
+    .allergy-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 2.6vh; padding: 0.7vh 0.9vw;
+      background: #0f172a; border-radius: 10px;
+    }
+    .allergy-row .aname { font-weight: 700; }
+    .allergy-row .anum { font-weight: 900; font-size: 3vh; color: var(--allergy); }
+    .empty { color: var(--muted); font-size: 2.2vh; text-align: center; margin-top: 2vh; }
+
+    .clock { font-size: 2.1vh; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="title">🧸 อนุบาล <span class="badge">จอครัว</span></div>
+    <div class="status">
+      <span class="clock" id="clock"></span>
+      <span class="dot" id="dot"></span>
+      <span id="syncText">กำลังโหลด...</span>
+      <a class="nav-link" href="./primary.html">ไปจอประถม →</a>
+    </div>
+  </div>
+
+  <div class="totals">
+    <div class="total-card sum">
+      <div class="label">ยอดรวมอนุบาล</div>
+      <div class="num" id="sumTotal">0</div>
+      <div class="sub" id="sumRooms">0 ห้อง</div>
+    </div>
+    <div class="total-card t1">
+      <div class="label">🚗 รถคันที่ 1</div>
+      <div class="num" id="t1Total">0</div>
+      <div class="sub" id="t1Rooms">0 ห้อง</div>
+    </div>
+    <div class="total-card t2">
+      <div class="label">🚗 รถคันที่ 2</div>
+      <div class="num" id="t2Total">0</div>
+      <div class="sub" id="t2Rooms">0 ห้อง</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="rooms-col">
+      <div class="room-group g1">
+        <h2>🚗 รถคันที่ 1 <span class="cnt" id="t1Cnt">0</span></h2>
+        <div class="room-list" id="t1List"></div>
+      </div>
+      <div class="room-group g2">
+        <h2>🚗 รถคันที่ 2 <span class="cnt" id="t2Cnt">0</span></h2>
+        <div class="room-list" id="t2List"></div>
+      </div>
+    </div>
+    <div class="allergy-col">
+      <h2>⚠️ รายการพิเศษวันนี้</h2>
+      <div class="allergy-list" id="allergyList"></div>
+    </div>
+  </div>
+
+<script>
+  // ── ตั้งค่า ─────────────────────────────────────────────
+  const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzdfBIHtTaaalPHKk_BcNyUj5edtuD5oYwLzgzsGHH5sKUCROxXHZ50qMbgddUlhFN7hg/exec";
+  const REFRESH_MS = 60000; // 60 วินาที
+
+  // ── helper ──────────────────────────────────────────────
+  function todayThai() {
+    return new Date().toLocaleDateString("th-TH");
+  }
+  function textToAllergies(text) {
+    if (!text || typeof text !== "string") return [];
+    return text.split(",").map(p => {
+      const [name, count] = p.split(":");
+      return { name: (name||"").trim(), count: parseInt(count)||1 };
+    }).filter(a => a.name);
+  }
+  function fmtTime(d) {
+    return d.toLocaleTimeString("th-TH", { hour:"2-digit", minute:"2-digit" });
+  }
+
+  // เอาแถวล่าสุดของแต่ละห้อง เฉพาะวันนี้ (เฉพาะอนุบาล)
+  function processKinder(raw) {
+    const today = todayThai();
+    const byRoom = {};
+    (raw["อนุบาล"] || []).forEach(r => {
+      if (String(r["วันที่"]).trim() !== today) return;
+      const room = r["ห้อง"];
+      if (!room) return;
+      byRoom[room] = {
+        room,
+        total: parseInt(r["จำนวนกิน"]) || 0,
+        truck: parseInt(r["รถ"]) || 1,
+        allergies: textToAllergies(r["แพ้อาหาร"]),
+      };
+    });
+    return Object.values(byRoom);
+  }
+
+  function render(rows) {
+    const t1 = rows.filter(r => r.truck === 1);
+    const t2 = rows.filter(r => r.truck === 2);
+    const sum1 = t1.reduce((s,r) => s+r.total, 0);
+    const sum2 = t2.reduce((s,r) => s+r.total, 0);
+
+    document.getElementById("sumTotal").textContent = sum1 + sum2;
+    document.getElementById("sumRooms").textContent = rows.length + " ห้อง";
+    document.getElementById("t1Total").textContent = sum1;
+    document.getElementById("t2Total").textContent = sum2;
+    document.getElementById("t1Rooms").textContent = t1.length + " ห้อง";
+    document.getElementById("t2Rooms").textContent = t2.length + " ห้อง";
+    document.getElementById("t1Cnt").textContent = sum1 + " คน";
+    document.getElementById("t2Cnt").textContent = sum2 + " คน";
+
+    const rowHTML = r =>
+      `<div class="room-row"><span class="rname">${r.room}</span><span class="rnum">${r.total}</span></div>`;
+    document.getElementById("t1List").innerHTML = t1.length ? t1.map(rowHTML).join("") : `<div class="empty">— ยังไม่มีข้อมูล —</div>`;
+    document.getElementById("t2List").innerHTML = t2.length ? t2.map(rowHTML).join("") : `<div class="empty">— ยังไม่มีข้อมูล —</div>`;
+
+    // รวมแพ้อาหาร
+    const amap = {};
+    rows.forEach(r => r.allergies.forEach(a => { amap[a.name] = (amap[a.name]||0) + a.count; }));
+    const entries = Object.entries(amap);
+    document.getElementById("allergyList").innerHTML = entries.length
+      ? entries.map(([n,c]) => `<div class="allergy-row"><span class="aname">${n}</span><span class="anum">${c}</span></div>`).join("")
+      : `<div class="empty">— ไม่มีรายการพิเศษ —</div>`;
+  }
+
+  async function fetchData() {
+    const dot = document.getElementById("dot");
+    const syncText = document.getElementById("syncText");
+    dot.classList.add("loading");
+    syncText.textContent = "กำลังซิงค์...";
+    try {
+      const res = await fetch(SHEET_API_URL);
+      const raw = await res.json();
+      render(processKinder(raw));
+      syncText.textContent = "อัปเดต " + fmtTime(new Date());
+    } catch (e) {
+      syncText.textContent = "เชื่อมต่อไม่ได้ – จะลองใหม่";
+    } finally {
+      dot.classList.remove("loading");
+    }
+  }
+
+  function tickClock() {
+    document.getElementById("clock").textContent =
+      new Date().toLocaleDateString("th-TH", { weekday:"long", day:"numeric", month:"long" });
+  }
+
+  tickClock();
+  fetchData();
+  setInterval(fetchData, REFRESH_MS);
+  setInterval(tickClock, 60000);
+</script>
+</body>
+</html>
