@@ -132,7 +132,25 @@
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzdfBIHtTaaalPHKk_BcNyUj5edtuD5oYwLzgzsGHH5sKUCROxXHZ50qMbgddUlhFN7hg/exec";
   const REFRESH_MS = 60000;
 
-  function todayThai() { return new Date().toLocaleDateString("th-TH"); }
+  function thaiDateKey(date) {
+    return date.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" });
+  }
+  function sheetDateKey(value) {
+    if (!value) return "";
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return thaiDateKey(value);
+
+    const text = String(value).trim();
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+    if (iso) {
+      const year = Number(iso[1]);
+      const normalizedYear = year > 2400 ? year - 543 : year;
+      const parsed = new Date(`${normalizedYear}-${iso[2]}-${iso[3]}${iso[4]}`);
+      if (!Number.isNaN(parsed.getTime())) return thaiDateKey(parsed);
+    }
+
+    return text;
+  }
+  function todayThai() { return thaiDateKey(new Date()); }
   function textToAllergies(text) {
     if (!text || typeof text !== "string") return [];
     return text.split(",").map(p => {
@@ -146,7 +164,7 @@
     const today = todayThai();
     const byRoom = {};
     (raw["ประถม"] || []).forEach(r => {
-      if (String(r["วันที่"]).trim() !== today) return;
+      if (sheetDateKey(r["วันที่"]) !== today) return;
       const room = r["ห้อง"];
       if (!room) return;
       byRoom[room] = {

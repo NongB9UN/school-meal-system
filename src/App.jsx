@@ -100,9 +100,31 @@ function textToAllergies(text) {
   }).filter(a => a.name);
 }
 
+function thaiDateKey(date) {
+  return date.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" });
+}
+
+// Google Sheets serializes Thai/Buddhist-year dates as ISO-like strings such as
+// 2569-07-20T17:00:00.000Z. Normalize them before comparing with today's date.
+function sheetDateKey(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return thaiDateKey(value);
+
+  const text = String(value).trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const normalizedYear = year > 2400 ? year - 543 : year;
+    const parsed = new Date(`${normalizedYear}-${iso[2]}-${iso[3]}${iso[4]}`);
+    if (!Number.isNaN(parsed.getTime())) return thaiDateKey(parsed);
+  }
+
+  return text;
+}
+
 // วันที่วันนี้แบบไทย d/m/yyyy(พ.ศ.) ให้ตรงกับที่เก็บใน Sheet
 function todayThai() {
-  return new Date().toLocaleDateString("th-TH");
+  return thaiDateKey(new Date());
 }
 
 // ─── Confirm Modal ───────────────────────────────────────────────────────────
@@ -676,8 +698,8 @@ function processSheetData(raw) {
   ["อนุบาล", "ประถม"].forEach(levelKey => {
     const rows = raw[levelKey] || [];
     rows.forEach(r => {
-      // เทียบวันที่แบบไทย (ตัดช่องว่างกันพลาด)
-      if (String(r["วันที่"]).trim() !== today) return;
+      // เทียบวันที่หลัง normalize เพราะ Apps Script อาจส่งวันที่เป็น ISO ปี พ.ศ.
+      if (sheetDateKey(r["วันที่"]) !== today) return;
       const classroom = r["ห้อง"];
       if (!classroom) return;
       // แถวหลังทับแถวก่อน = ได้แถวล่าสุดของห้องนั้นเสมอ
