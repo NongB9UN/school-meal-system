@@ -114,11 +114,21 @@
     .allergy-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0.8vh; }
     .allergy-row {
       display: flex; align-items: center; justify-content: space-between;
-      font-size: 2.6vh; padding: 0.7vh 0.9vw;
+      gap: 0.9vw; font-size: 2.6vh; padding: 0.7vh 0.9vw;
       background: #0f172a; border-radius: 10px;
     }
-    .allergy-row .aname { font-weight: 700; }
-    .allergy-row .anum { font-weight: 900; font-size: 3vh; color: var(--allergy); }
+    .allergy-row .aname {
+      flex: 1; font-weight: 700; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .truck-chips { display: flex; gap: 0.5vw; flex: 0 0 auto; flex-wrap: nowrap; }
+    .truck-chip {
+      font-size: 2vh; font-weight: 900; padding: 0.35vh 0.7vw;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .truck-chip.t1 { color: #dbeafe; background: rgba(59, 130, 246, 0.28); border: 2px solid var(--truck1); }
+    .truck-chip.t2 { color: #dcfce7; background: rgba(34, 197, 94, 0.28); border: 2px solid var(--truck2); }
+    .allergy-row .anum { flex: 0 0 3.5vw; text-align: right; font-weight: 900; font-size: 3vh; color: var(--allergy); }
     .empty { color: var(--muted); font-size: 2.2vh; text-align: center; margin-top: 2vh; }
 
     .clock { font-size: 2.1vh; color: var(--muted); }
@@ -173,7 +183,7 @@
 <script>
   // ── ตั้งค่า ─────────────────────────────────────────────
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzdfBIHtTaaalPHKk_BcNyUj5edtuD5oYwLzgzsGHH5sKUCROxXHZ50qMbgddUlhFN7hg/exec";
-  const REFRESH_MS = 60000; // 60 วินาที
+  const REFRESH_MS = 15000; // 15 วินาที
 
   // ── helper ──────────────────────────────────────────────
   function thaiDateKey(date) {
@@ -246,12 +256,25 @@
     document.getElementById("t1List").innerHTML = t1.length ? t1.map(rowHTML).join("") : `<div class="empty">— ยังไม่มีข้อมูล —</div>`;
     document.getElementById("t2List").innerHTML = t2.length ? t2.map(rowHTML).join("") : `<div class="empty">— ยังไม่มีข้อมูล —</div>`;
 
-    // รวมแพ้อาหาร
+    // รวมแพ้อาหาร โดยแยกรถคันที่ 1/2 เพื่อให้ทีมครัวจัดถาดพิเศษขึ้นรถถูกคัน
     const amap = {};
-    rows.forEach(r => r.allergies.forEach(a => { amap[a.name] = (amap[a.name]||0) + a.count; }));
+    rows.forEach(r => r.allergies.forEach(a => {
+      if (!amap[a.name]) amap[a.name] = { total: 0, trucks: { 1: 0, 2: 0 } };
+      amap[a.name].total += a.count;
+      amap[a.name].trucks[r.truck] = (amap[a.name].trucks[r.truck] || 0) + a.count;
+    }));
     const entries = Object.entries(amap);
     document.getElementById("allergyList").innerHTML = entries.length
-      ? entries.map(([n,c]) => `<div class="allergy-row"><span class="aname">${n}</span><span class="anum">${c}</span></div>`).join("")
+      ? entries.map(([n, item]) => `
+          <div class="allergy-row">
+            <span class="aname">${n}</span>
+            <span class="truck-chips">
+              ${item.trucks[1] ? `<span class="truck-chip t1">คัน 1: ${item.trucks[1]}</span>` : ""}
+              ${item.trucks[2] ? `<span class="truck-chip t2">คัน 2: ${item.trucks[2]}</span>` : ""}
+            </span>
+            <span class="anum">${item.total}</span>
+          </div>
+        `).join("")
       : `<div class="empty">— ไม่มีรายการพิเศษ —</div>`;
   }
 
