@@ -25,9 +25,11 @@ const LOG_HEADERS = [
   'การทำงาน',
 ];
 
+const APP_VERSION = '2026-08-10-upsert-room-date-v2';
+
 function doGet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const result = {};
+  const result = { version: APP_VERSION };
   [SHEET_NAMES.KINDER, SHEET_NAMES.PRIMARY].forEach((sheetName) => {
     const sheet = ensureSheet_(ss, sheetName, HEADERS);
     result[sheetName] = readSheet_(sheet);
@@ -39,51 +41,58 @@ function doGet() {
 }
 
 function doPost(e) {
-  const data = parsePayload_(e);
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const level = data.level || data['ระดับชั้น'] || SHEET_NAMES.KINDER;
-  const sheetName = level === SHEET_NAMES.PRIMARY ? SHEET_NAMES.PRIMARY : SHEET_NAMES.KINDER;
-  const sheet = ensureSheet_(ss, sheetName, HEADERS);
-  const logSheet = ensureSheet_(ss, SHEET_NAMES.LOGS, LOG_HEADERS);
-  const status = data.status || data['สถานะ'] || 'รับอาหาร';
-  const isNoMeal = status === 'ไม่รับอาหาร';
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
 
-  const row = [
-    data.date || data['วันที่'] || thaiDate_(new Date()),
-    data.time || data['เวลา'] || thaiTime_(new Date()),
-    data.term || data['เทอม'] || '',
-    data.week || data['สัปดาห์ที่'] || '',
-    level,
-    data.classroom || data['ห้อง'] || '',
-    isNoMeal ? 0 : Number(data.total || data['จำนวนกิน'] || 0),
-    isNoMeal ? '' : (data.truck || data['รถ'] || ''),
-    isNoMeal ? '' : (data.allergies || data['แพ้อาหาร'] || ''),
-    data.teacherName || data['ชื่อครู'] || '',
-    status,
-    data.note || data['หมายเหตุ'] || '',
-  ];
+  try {
+    const data = parsePayload_(e);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const level = data.level || data['ระดับชั้น'] || SHEET_NAMES.KINDER;
+    const sheetName = level === SHEET_NAMES.PRIMARY ? SHEET_NAMES.PRIMARY : SHEET_NAMES.KINDER;
+    const sheet = ensureSheet_(ss, sheetName, HEADERS);
+    const logSheet = ensureSheet_(ss, SHEET_NAMES.LOGS, LOG_HEADERS);
+    const status = data.status || data['สถานะ'] || 'รับอาหาร';
+    const isNoMeal = status === 'ไม่รับอาหาร';
 
-  const existingRow = findExistingRow_(sheet, row[0], level, row[5]);
-  const action = existingRow ? 'update' : 'insert';
+    const row = [
+      data.date || data['วันที่'] || thaiDate_(new Date()),
+      data.time || data['เวลา'] || thaiTime_(new Date()),
+      data.term || data['เทอม'] || '',
+      data.week || data['สัปดาห์ที่'] || '',
+      level,
+      data.classroom || data['ห้อง'] || '',
+      isNoMeal ? 0 : Number(data.total || data['จำนวนกิน'] || 0),
+      isNoMeal ? '' : (data.truck || data['รถ'] || ''),
+      isNoMeal ? '' : (data.allergies || data['แพ้อาหาร'] || ''),
+      data.teacherName || data['ชื่อครู'] || '',
+      status,
+      data.note || data['หมายเหตุ'] || '',
+    ];
 
-  if (existingRow) {
-    sheet.getRange(existingRow, 1, 1, HEADERS.length).setValues([row]);
-  } else {
-    sheet.appendRow(row);
+    const existingRow = findExistingRow_(sheet, row[0], row[5]);
+    const action = existingRow ? 'update' : 'insert';
+
+    if (existingRow) {
+      sheet.getRange(existingRow, 1, 1, HEADERS.length).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+    }
+
+    const savedRow = existingRow || sheet.getLastRow();
+    removeDuplicateRows_(sheet, row[0], row[5], savedRow);
+
+    logSheet.appendRow([
+      ...row,
+      Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
+      action,
+    ]);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, action, row: savedRow, version: APP_VERSION }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
-
-  const savedRow = existingRow || sheet.getLastRow();
-  removeDuplicateRows_(sheet, row[0], level, row[5], savedRow);
-
-  logSheet.appendRow([
-    ...row,
-    Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
-    action,
-  ]);
-
-  return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, action, row: savedRow }))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function ensureSheet_(ss, sheetName, headers) {
@@ -103,16 +112,15 @@ function ensureSheet_(ss, sheetName, headers) {
   return sheet;
 }
 
-function findExistingRow_(sheet, date, level, classroom) {
+function findExistingRow_(sheet, date, classroom) {
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2 || !date || !level || !classroom) return null;
+  if (lastRow < 2 || !date || !classroom) return null;
 
   const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
   for (let index = values.length - 1; index >= 0; index -= 1) {
     const row = values[index];
     if (
       dateKey_(row[0]) === dateKey_(date) &&
-      String(row[4]).trim() === String(level).trim() &&
       String(row[5]).trim() === String(classroom).trim()
     ) {
       return index + 2;
@@ -121,9 +129,9 @@ function findExistingRow_(sheet, date, level, classroom) {
   return null;
 }
 
-function removeDuplicateRows_(sheet, date, level, classroom, keepRow) {
+function removeDuplicateRows_(sheet, date, classroom, keepRow) {
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2 || !date || !level || !classroom || !keepRow) return;
+  if (lastRow < 2 || !date || !classroom || !keepRow) return;
 
   const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
   for (let index = values.length - 1; index >= 0; index -= 1) {
@@ -133,7 +141,6 @@ function removeDuplicateRows_(sheet, date, level, classroom, keepRow) {
     const row = values[index];
     const isSameRecord =
       dateKey_(row[0]) === dateKey_(date) &&
-      String(row[4]).trim() === String(level).trim() &&
       String(row[5]).trim() === String(classroom).trim();
 
     if (isSameRecord) {
