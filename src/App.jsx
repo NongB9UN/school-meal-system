@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 // ─── ตั้งค่า ─────────────────────────────────────────────────────────────────
 const LIFF_ID = "2010548613-ST8oae00";
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzdfBIHtTaaalPHKk_BcNyUj5edtuD5oYwLzgzsGHH5sKUCROxXHZ50qMbgddUlhFN7hg/exec";
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbztuN4_muVke5ZhhpDJmLrxFJJinMb74P0T-P2LTP3ggXJCBqPhb49JCMitSLZfjy5X/exec";
 
 // ─── LIFF ───────────────────────────────────────────────────────────────────
 function useLiff() {
