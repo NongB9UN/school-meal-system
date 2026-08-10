@@ -117,6 +117,8 @@ function sheetDateKey(value) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return thaiDateKey(value);
 
   const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
   const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
   if (iso) {
     const year = Number(iso[1]);
@@ -131,6 +133,18 @@ function sheetDateKey(value) {
 // วันที่วันนี้แบบไทย d/m/yyyy(พ.ศ.) ให้ตรงกับที่เก็บใน Sheet
 function todayThai() {
   return thaiDateKey(new Date());
+}
+
+function todayGoogle() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const byType = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
 }
 
 // ─── Confirm Modal ───────────────────────────────────────────────────────────
@@ -772,13 +786,15 @@ function LoadingScreen() {
 // กรองเฉพาะวันนี้ + เอาแถวล่าสุดของแต่ละห้อง (ตรรกะ A)
 function processSheetData(raw) {
   const today = todayThai();
+  const googleToday = todayGoogle();
   const byClassroom = {}; // ห้อง → แถวล่าสุด
 
   ["อนุบาล", "ประถม"].forEach(levelKey => {
     const rows = raw[levelKey] || [];
     rows.forEach(r => {
       // เทียบวันที่หลัง normalize เพราะ Apps Script อาจส่งวันที่เป็น ISO ปี พ.ศ.
-      if (sheetDateKey(r["วันที่"]) !== today) return;
+      const rowDate = sheetDateKey(r["วันที่"]);
+      if (rowDate !== today && rowDate !== googleToday) return;
       const classroom = r["ห้อง"];
       if (!classroom) return;
       const status = r["สถานะ"] || r.status || MEAL_STATUS.EATING;

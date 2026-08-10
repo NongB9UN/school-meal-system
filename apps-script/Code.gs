@@ -25,7 +25,7 @@ const LOG_HEADERS = [
   'การทำงาน',
 ];
 
-const APP_VERSION = '2026-08-10-upsert-room-date-v3';
+const APP_VERSION = '2026-08-10-google-date-key-v4';
 
 function doGet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -53,10 +53,13 @@ function doPost(e) {
     const logSheet = ensureSheet_(ss, SHEET_NAMES.LOGS, LOG_HEADERS);
     const status = data.status || data['สถานะ'] || 'รับอาหาร';
     const isNoMeal = status === 'ไม่รับอาหาร';
+    const now = new Date();
+    const date = googleDate_(now);
+    const time = googleTime_(now);
 
     const row = [
-      data.date || data['วันที่'] || thaiDate_(new Date()),
-      data.time || data['เวลา'] || thaiTime_(new Date()),
+      date,
+      time,
       data.term || data['เทอม'] || '',
       data.week || data['สัปดาห์ที่'] || '',
       level,
@@ -83,7 +86,7 @@ function doPost(e) {
 
     logSheet.appendRow([
       ...row,
-      Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
+      Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
       action,
     ]);
 
@@ -225,5 +228,13 @@ function thaiDate_(date) {
 }
 
 function thaiTime_(date) {
+  return Utilities.formatDate(date, 'Asia/Bangkok', 'HH:mm');
+}
+
+function googleDate_(date) {
+  return Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM-dd');
+}
+
+function googleTime_(date) {
   return Utilities.formatDate(date, 'Asia/Bangkok', 'HH:mm');
 }
