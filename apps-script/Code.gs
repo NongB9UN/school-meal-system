@@ -73,6 +73,8 @@ function doPost(e) {
   }
 
   const savedRow = existingRow || sheet.getLastRow();
+  removeDuplicateRows_(sheet, row[0], level, row[5], savedRow);
+
   logSheet.appendRow([
     ...row,
     Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
@@ -97,10 +99,7 @@ function ensureSheet_(ss, sheetName, headers) {
     return sheet;
   }
 
-  const existingHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), headerList.length)).getValues()[0];
-  headerList.forEach((header, index) => {
-    if (!existingHeaders[index]) sheet.getRange(1, index + 1).setValue(header);
-  });
+  sheet.getRange(1, 1, 1, headerList.length).setValues([headerList]);
   return sheet;
 }
 
@@ -120,6 +119,27 @@ function findExistingRow_(sheet, date, level, classroom) {
     }
   }
   return null;
+}
+
+function removeDuplicateRows_(sheet, date, level, classroom, keepRow) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2 || !date || !level || !classroom || !keepRow) return;
+
+  const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const rowNumber = index + 2;
+    if (rowNumber === keepRow) continue;
+
+    const row = values[index];
+    const isSameRecord =
+      dateKey_(row[0]) === dateKey_(date) &&
+      String(row[4]).trim() === String(level).trim() &&
+      String(row[5]).trim() === String(classroom).trim();
+
+    if (isSameRecord) {
+      sheet.deleteRow(rowNumber);
+    }
+  }
 }
 
 function readSheet_(sheet) {
@@ -157,12 +177,20 @@ function normalizeValue_(value) {
 
 function dateKey_(value) {
   if (!value) return '';
-  if (value instanceof Date) return thaiDate_(value);
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, 'Asia/Bangkok', 'yyyy-MM-dd');
+  }
 
   const text = String(value).trim();
   const thaiDate = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (thaiDate) {
-    return `${Number(thaiDate[1])}/${Number(thaiDate[2])}/${Number(thaiDate[3])}`;
+    const year = Number(thaiDate[3]);
+    const normalizedYear = year > 2400 ? year - 543 : year;
+    return [
+      normalizedYear,
+      String(Number(thaiDate[2])).padStart(2, '0'),
+      String(Number(thaiDate[1])).padStart(2, '0'),
+    ].join('-');
   }
 
   const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
@@ -171,7 +199,9 @@ function dateKey_(value) {
     const normalizedYear = year > 2400 ? year - 543 : year;
     const suffix = iso[4] || 'T00:00:00.000Z';
     const parsed = new Date(`${normalizedYear}-${iso[2]}-${iso[3]}${suffix}`);
-    if (!Number.isNaN(parsed.getTime())) return thaiDate_(parsed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return Utilities.formatDate(parsed, 'Asia/Bangkok', 'yyyy-MM-dd');
+    }
   }
 
   return text;
