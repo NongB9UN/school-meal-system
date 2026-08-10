@@ -25,7 +25,7 @@ const LOG_HEADERS = [
   'การทำงาน',
 ];
 
-const APP_VERSION = '2026-08-10-upsert-room-date-v2';
+const APP_VERSION = '2026-08-10-upsert-room-date-v3';
 
 function doGet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -185,7 +185,13 @@ function normalizeValue_(value) {
 function dateKey_(value) {
   if (!value) return '';
   if (value instanceof Date) {
-    return Utilities.formatDate(value, 'Asia/Bangkok', 'yyyy-MM-dd');
+    const year = Number(Utilities.formatDate(value, 'Asia/Bangkok', 'yyyy'));
+    const normalizedYear = year > 2400 ? year - 543 : year;
+    return [
+      normalizedYear,
+      Utilities.formatDate(value, 'Asia/Bangkok', 'MM'),
+      Utilities.formatDate(value, 'Asia/Bangkok', 'dd'),
+    ].join('-');
   }
 
   const text = String(value).trim();
