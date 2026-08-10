@@ -217,6 +217,9 @@
   function fmtTime(d) {
     return d.toLocaleTimeString("th-TH", { hour:"2-digit", minute:"2-digit" });
   }
+  function isNoMeal(row) {
+    return (row["สถานะ"] || row.status || "").trim() === "ไม่รับอาหาร";
+  }
 
   // เอาแถวล่าสุดของแต่ละห้อง เฉพาะวันนี้ (เฉพาะอนุบาล)
   function processKinder(raw) {
@@ -226,6 +229,10 @@
       if (sheetDateKey(r["วันที่"]) !== today) return;
       const room = r["ห้อง"];
       if (!room) return;
+      if (isNoMeal(r)) {
+        byRoom[room] = { room, total: 0, truck: 0, allergies: [], noMeal: true };
+        return;
+      }
       byRoom[room] = {
         room,
         total: parseInt(r["จำนวนกิน"]) || 0,
@@ -233,7 +240,7 @@
         allergies: textToAllergies(r["แพ้อาหาร"]),
       };
     });
-    return Object.values(byRoom);
+    return Object.values(byRoom).filter(r => !r.noMeal);
   }
 
   function render(rows) {

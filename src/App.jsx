@@ -73,7 +73,13 @@ const ALLERGY_PRESETS = [
   "อิสลาม","แพ้กุ้ง","แพ้ถั่ว","แพ้นมวัว","แพ้ไข่",
   "แพ้แป้งสาลี","แพ้ปลา","แพ้แตงโม","แพ้มะละกอ","แพ้ขนมจีน",
   "แพ้ข้าวเหนียว","แพ้กล้วย","แพ้ชมพู่","แพ้อาหารทะเล",
+  "แพ้เส้น","แพ้ปลาทุกชนิด","แพ้นม","ไม่ทานนมทุกชนิด",
 ];
+
+const MEAL_STATUS = {
+  EATING: "รับอาหาร",
+  NO_MEAL: "ไม่รับอาหาร",
+};
 
 function fmtTime(date) {
   return date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
@@ -128,7 +134,8 @@ function todayThai() {
 }
 
 // ─── Confirm Modal ───────────────────────────────────────────────────────────
-function ConfirmModal({ classroom, level, total, truck, allergies, teacherName, onConfirm, onCancel, sending }) {
+function ConfirmModal({ classroom, level, total, truck, allergies, teacherName, mealStatus, noMealNote, onConfirm, onCancel, sending }) {
+  const isNoMeal = mealStatus === MEAL_STATUS.NO_MEAL;
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4">
       <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl">
@@ -144,16 +151,26 @@ function ConfirmModal({ classroom, level, total, truck, allergies, teacherName, 
             <span className="font-bold text-gray-800">{classroom}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">จำนวนนักเรียน</span>
-            <span className="font-black text-orange-600 text-lg">{total} คน</span>
+            <span className="text-gray-500">สถานะ</span>
+            <span className={`font-bold ${isNoMeal ? "text-gray-700" : "text-green-700"}`}>{mealStatus}</span>
           </div>
-          {level === "อนุบาล" && (
+          <div className="flex justify-between">
+            <span className="text-gray-500">จำนวนนักเรียน</span>
+            <span className="font-black text-orange-600 text-lg">{isNoMeal ? 0 : total} คน</span>
+          </div>
+          {isNoMeal && noMealNote && (
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500">หมายเหตุ</span>
+              <span className="font-semibold text-gray-700 text-right">{noMealNote}</span>
+            </div>
+          )}
+          {!isNoMeal && level === "อนุบาล" && (
             <div className="flex justify-between">
               <span className="text-gray-500">รถ</span>
               <span className={`font-bold ${truck===1?"text-blue-600":"text-green-600"}`}>คันที่ {truck}</span>
             </div>
           )}
-          {allergies.length > 0 && (
+          {!isNoMeal && allergies.length > 0 && (
             <div className="pt-1 border-t border-orange-100">
               <p className="text-gray-500 mb-1">ข้อมูลพิเศษ</p>
               {allergies.map(a => (
@@ -182,6 +199,8 @@ function TeacherForm({ onSubmit, submissions, user }) {
   const [total, setTotal]             = useState(20);
   const [truck, setTruck]             = useState(1);
   const [allergies, setAllergies]     = useState([]);
+  const [mealStatus, setMealStatus]   = useState(MEAL_STATUS.EATING);
+  const [noMealNote, setNoMealNote]   = useState("");
   const [allergyName, setAllergyName] = useState("");
   const [allergyCount, setAllergyCount] = useState(1);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -199,6 +218,8 @@ function TeacherForm({ onSubmit, submissions, user }) {
     setDoneClass(null);
     setEditMode(false);
     setAllergies([]);
+    setMealStatus(MEAL_STATUS.EATING);
+    setNoMealNote("");
   };
 
   const handleClassroomChange = (val) => {
@@ -210,10 +231,14 @@ function TeacherForm({ onSubmit, submissions, user }) {
       setTotal(prev.total);
       setTruck(prev.truck || 1);
       setAllergies(prev.allergies);
+      setMealStatus(prev.status || MEAL_STATUS.EATING);
+      setNoMealNote(prev.note || "");
     } else {
       setTotal(20);
       setTruck(TRUCK_DEFAULT[val] || 1);
       setAllergies([]);
+      setMealStatus(MEAL_STATUS.EATING);
+      setNoMealNote("");
     }
   };
 
@@ -237,6 +262,7 @@ function TeacherForm({ onSubmit, submissions, user }) {
 
     const now = new Date();
     const { term, week } = getTermAndWeek(now);
+    const isNoMeal = mealStatus === MEAL_STATUS.NO_MEAL;
 
     const payload = {
       date: now.toLocaleDateString("th-TH"),
@@ -245,9 +271,13 @@ function TeacherForm({ onSubmit, submissions, user }) {
       week,
       level,
       classroom,
-      total,
-      truck: level === "อนุบาล" ? truck : "",
-      allergies: allergiesToText(allergies),
+      total: isNoMeal ? 0 : total,
+      truck: !isNoMeal && level === "อนุบาล" ? truck : "",
+      allergies: isNoMeal ? "" : allergiesToText(allergies),
+      status: mealStatus,
+      note: isNoMeal ? noMealNote.trim() : "",
+      "สถานะ": mealStatus,
+      "หมายเหตุ": isNoMeal ? noMealNote.trim() : "",
       teacherName: user?.name || "ไม่ระบุ",
     };
 
@@ -260,7 +290,13 @@ function TeacherForm({ onSubmit, submissions, user }) {
       });
 
       onSubmit({
-        classroom, level, total, truck, allergies,
+        classroom,
+        level,
+        total: isNoMeal ? 0 : total,
+        truck: isNoMeal ? "" : truck,
+        allergies: isNoMeal ? [] : allergies,
+        status: mealStatus,
+        note: isNoMeal ? noMealNote.trim() : "",
         time: now,
         edited: editMode,
         teacherName: user?.name || "ไม่ระบุ",
@@ -302,6 +338,7 @@ function TeacherForm({ onSubmit, submissions, user }) {
         <ConfirmModal
           classroom={classroom} level={level} total={total} truck={truck}
           allergies={allergies} teacherName={user?.name || "ไม่ระบุ"}
+          mealStatus={mealStatus} noMealNote={noMealNote}
           sending={sending}
           onConfirm={handleConfirm} onCancel={() => setShowConfirm(false)}
         />
@@ -350,14 +387,16 @@ function TeacherForm({ onSubmit, submissions, user }) {
             const done = submissions.find(s => s.classroom === c);
             return (
               <option key={c} value={c}>
-                {done ? "✓ " : ""}{c}{done ? ` (${done.total} คน)` : ""}
+                {done ? "✓ " : ""}{c}{done ? (done.status === MEAL_STATUS.NO_MEAL ? " (ไม่รับอาหาร)" : ` (${done.total} คน)`) : ""}
               </option>
             );
           })}
         </select>
-        {existing && !editMode && (
+          {existing && !editMode && (
           <div className="mt-2 bg-orange-50 rounded-xl px-3 py-2 flex items-center justify-between">
-            <p className="text-orange-600 text-sm">ส่งข้อมูลแล้ว เมื่อ {fmtTime(existing.time)}</p>
+            <p className="text-orange-600 text-sm">
+              {existing.status === MEAL_STATUS.NO_MEAL ? "แจ้งไม่รับอาหารแล้ว" : "ส่งข้อมูลแล้ว"} เมื่อ {fmtTime(existing.time)}
+            </p>
             <button onClick={startEdit} className="text-xs text-orange-500 font-semibold underline">แก้ไข</button>
           </div>
         )}
@@ -365,6 +404,43 @@ function TeacherForm({ onSubmit, submissions, user }) {
 
       {classroom && (
         <>
+          {/* สถานะอาหารกลางวัน */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-50">
+            <label className="block text-sm font-semibold text-gray-500 mb-3">🍽️ สถานะอาหารกลางวัน</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setMealStatus(MEAL_STATUS.EATING)}
+                className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                  mealStatus === MEAL_STATUS.EATING
+                    ? "border-green-500 bg-green-500 text-white shadow-md"
+                    : "border-gray-200 bg-gray-50 text-gray-400"
+                }`}>
+                รับอาหารตามปกติ
+              </button>
+              <button onClick={() => {
+                  setMealStatus(MEAL_STATUS.NO_MEAL);
+                  setAllergies([]);
+                }}
+                className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                  mealStatus === MEAL_STATUS.NO_MEAL
+                    ? "border-gray-700 bg-gray-700 text-white shadow-md"
+                    : "border-gray-200 bg-gray-50 text-gray-400"
+                }`}>
+                ไม่รับอาหารกลางวัน
+              </button>
+            </div>
+            {mealStatus === MEAL_STATUS.NO_MEAL && (
+              <input
+                type="text"
+                value={noMealNote}
+                onChange={e => setNoMealNote(e.target.value)}
+                placeholder="หมายเหตุ เช่น กิจกรรมพิเศษ / เลี้ยงอาหารเอง"
+                className="mt-3 w-full border-2 border-gray-100 rounded-xl px-3 py-2 text-sm focus:border-gray-300 focus:outline-none"
+              />
+            )}
+          </div>
+
+          {mealStatus === MEAL_STATUS.EATING && (
+          <>
           {/* Slider จำนวนนักเรียน */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-50">
             <label className="block text-sm font-semibold text-gray-500 mb-3">👨‍🎓 จำนวนนักเรียนวันนี้</label>
@@ -467,6 +543,8 @@ function TeacherForm({ onSubmit, submissions, user }) {
               </div>
             </div>
           )}
+          </>
+          )}
 
           {sendError && (
             <div className="bg-red-50 border-2 border-red-200 text-red-600 text-sm rounded-xl px-3 py-2 text-center">
@@ -488,8 +566,9 @@ function TeacherForm({ onSubmit, submissions, user }) {
 
 // ─── Kitchen Dashboard ───────────────────────────────────────────────────────
 function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
-  const kinder = submissions.filter(s => s.level === "อนุบาล");
-  const primary = submissions.filter(s => s.level === "ประถม");
+  const activeSubmissions = submissions.filter(s => s.status !== MEAL_STATUS.NO_MEAL);
+  const kinder = activeSubmissions.filter(s => s.level === "อนุบาล");
+  const primary = activeSubmissions.filter(s => s.level === "ประถม");
 
   const truck1   = kinder.filter(s => s.truck === 1);
   const truck2   = kinder.filter(s => s.truck === 2);
@@ -504,7 +583,7 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
   const pct      = Math.round((done / allClassrooms.length) * 100);
 
   const allergyMap = {};
-  submissions.forEach(s => s.allergies.forEach(a => {
+  activeSubmissions.forEach(s => s.allergies.forEach(a => {
     allergyMap[a.name] = (allergyMap[a.name] || 0) + a.count;
   }));
 
@@ -702,13 +781,17 @@ function processSheetData(raw) {
       if (sheetDateKey(r["วันที่"]) !== today) return;
       const classroom = r["ห้อง"];
       if (!classroom) return;
+      const status = r["สถานะ"] || r.status || MEAL_STATUS.EATING;
+      const note = r["หมายเหตุ"] || r.note || "";
       // แถวหลังทับแถวก่อน = ได้แถวล่าสุดของห้องนั้นเสมอ
       byClassroom[classroom] = {
         classroom,
         level: r["ระดับชั้น"] || levelKey,
-        total: parseInt(r["จำนวนกิน"]) || 0,
-        truck: parseInt(r["รถ"]) || 1,
-        allergies: textToAllergies(r["แพ้อาหาร"]),
+        total: status === MEAL_STATUS.NO_MEAL ? 0 : parseInt(r["จำนวนกิน"]) || 0,
+        truck: status === MEAL_STATUS.NO_MEAL ? "" : parseInt(r["รถ"]) || 1,
+        allergies: status === MEAL_STATUS.NO_MEAL ? [] : textToAllergies(r["แพ้อาหาร"]),
+        status,
+        note,
         teacherName: r["ชื่อครู"] || "ไม่ระบุ",
         time: new Date(),      // เวลาแสดงผลคร่าวๆ (ข้อมูลจริงอยู่ใน Sheet)
         edited: false,
