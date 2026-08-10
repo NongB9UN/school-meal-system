@@ -25,7 +25,7 @@ const LOG_HEADERS = [
   'การทำงาน',
 ];
 
-const APP_VERSION = '2026-08-10-google-date-key-v4';
+const APP_VERSION = '2026-08-10-replace-room-date-v5';
 
 function doGet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -72,17 +72,10 @@ function doPost(e) {
       data.note || data['หมายเหตุ'] || '',
     ];
 
-    const existingRow = findExistingRow_(sheet, row[0], row[5]);
-    const action = existingRow ? 'update' : 'insert';
-
-    if (existingRow) {
-      sheet.getRange(existingRow, 1, 1, HEADERS.length).setValues([row]);
-    } else {
-      sheet.appendRow(row);
-    }
-
-    const savedRow = existingRow || sheet.getLastRow();
-    removeDuplicateRows_(sheet, row[0], row[5], savedRow);
+    const replacedCount = deleteExistingRows_(sheet, row[0], row[5]);
+    const action = replacedCount ? 'replace' : 'insert';
+    sheet.appendRow(row);
+    const savedRow = sheet.getLastRow();
 
     logSheet.appendRow([
       ...row,
@@ -115,41 +108,25 @@ function ensureSheet_(ss, sheetName, headers) {
   return sheet;
 }
 
-function findExistingRow_(sheet, date, classroom) {
+function deleteExistingRows_(sheet, date, classroom) {
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2 || !date || !classroom) return null;
+  if (lastRow < 2 || !date || !classroom) return 0;
 
   const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    const row = values[index];
-    if (
-      dateKey_(row[0]) === dateKey_(date) &&
-      String(row[5]).trim() === String(classroom).trim()
-    ) {
-      return index + 2;
-    }
-  }
-  return null;
-}
-
-function removeDuplicateRows_(sheet, date, classroom, keepRow) {
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2 || !date || !classroom || !keepRow) return;
-
-  const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  let deleted = 0;
   for (let index = values.length - 1; index >= 0; index -= 1) {
     const rowNumber = index + 2;
-    if (rowNumber === keepRow) continue;
-
     const row = values[index];
     const isSameRecord =
       dateKey_(row[0]) === dateKey_(date) &&
-      String(row[5]).trim() === String(classroom).trim();
+      classroomKey_(row[5]) === classroomKey_(classroom);
 
     if (isSameRecord) {
       sheet.deleteRow(rowNumber);
+      deleted += 1;
     }
   }
+  return deleted;
 }
 
 function readSheet_(sheet) {
@@ -221,6 +198,10 @@ function dateKey_(value) {
   }
 
   return text;
+}
+
+function classroomKey_(value) {
+  return String(value || '').replace(/\s+/g, '').trim();
 }
 
 function thaiDate_(date) {
