@@ -13,6 +13,11 @@
       --allergy: #ef4444;
       --text: #f8fafc;
       --muted: #94a3b8;
+      --room-font: 2.6vh;
+      --room-num-font: 3vh;
+      --room-pad-y: 0.6vh;
+      --room-gap: 0.8vh;
+      --tag-font: 1.55vh;
     }
     html, body {
       width: 100%; height: 100%;
@@ -49,6 +54,10 @@
       text-decoration: none; font-size: 2vh; font-weight: 700;
       padding: 1vh 1.6vw; border-radius: 12px; border: 2px solid #334155;
     }
+    button.nav-link {
+      font-family: inherit;
+      cursor: pointer;
+    }
 
     .totals { display: flex; gap: 1.5vw; margin-bottom: 1.5vh; }
     .total-card {
@@ -70,14 +79,22 @@
     .rooms-col h2 .cnt { font-size: 3.4vh; font-weight: 900; }
     .room-grid {
       flex: 1; overflow: hidden;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8vh 1.5vw; align-content: start;
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--room-gap) 1.5vw; align-content: start;
     }
     .room-row {
       display: flex; align-items: center; justify-content: space-between;
-      font-size: 2.6vh; padding: 0.6vh 0.8vw; background: #0f172a; border-radius: 10px;
+      font-size: var(--room-font); padding: var(--room-pad-y) 0.8vw; background: #0f172a; border-radius: 10px;
+      min-height: 0;
     }
+    .room-row .rmain { display: flex; align-items: center; gap: 0.7vw; min-width: 0; }
     .room-row .rname { font-weight: 700; }
-    .room-row .rnum  { font-weight: 900; font-size: 3vh; color: var(--primary); }
+    .room-row .tag {
+      font-size: var(--tag-font); font-weight: 800; padding: 0.22vh 0.55vw;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .room-row .tag.default { color: #c7d2fe; background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(99, 102, 241, 0.55); }
+    .room-row .tag.reported { color: #bbf7d0; background: rgba(34, 197, 94, 0.16); border: 1px solid rgba(34, 197, 94, 0.5); }
+    .room-row .rnum  { font-weight: 900; font-size: var(--room-num-font); color: var(--primary); }
 
     .allergy-col {
       flex: 1; background: var(--card); border-radius: 20px; padding: 1.5vh 1.2vw;
@@ -96,6 +113,25 @@
     .allergy-row .anum { font-weight: 900; font-size: 3vh; color: var(--allergy); }
     .empty { color: var(--muted); font-size: 2.2vh; text-align: center; margin-top: 2vh; }
     .clock { font-size: 2.1vh; color: var(--muted); }
+
+    @media (max-height: 820px) {
+      body { padding: 1.1vh 1.5vw; }
+      .topbar { margin-bottom: 0.8vh; }
+      .title { font-size: 3.3vh; }
+      .title .badge { font-size: 1.9vh; padding: 0.3vh 1vw; }
+      .status { font-size: 1.75vh; gap: 0.7vw; }
+      .nav-link { font-size: 1.65vh; padding: 0.65vh 1.1vw; border-radius: 9px; }
+      .totals { margin-bottom: 0.8vh; }
+      .total-card { border-radius: 14px; padding: 0.9vh 1vw; }
+      .total-card .label { font-size: 2vh; margin-bottom: 0.25vh; }
+      .total-card .num { font-size: 6.7vh; }
+      .total-card .sub { font-size: 1.6vh; margin-top: 0.2vh; }
+      .rooms-col,
+      .allergy-col { border-radius: 14px; padding: 1vh 0.9vw; }
+      .rooms-col h2,
+      .allergy-col h2 { font-size: 2.2vh; margin-bottom: 0.6vh; padding-bottom: 0.6vh; }
+      .rooms-col h2 .cnt { font-size: 2.6vh; }
+    }
   </style>
 </head>
 <body>
@@ -105,6 +141,7 @@
       <span class="clock" id="clock"></span>
       <span class="dot" id="dot"></span>
       <span id="syncText">กำลังโหลด...</span>
+      <button class="nav-link" type="button" onclick="fetchData(true)">รีเฟรช</button>
       <a class="nav-link" href="./kinder.html">← ไปจออนุบาล</a>
     </div>
   </div>
@@ -130,7 +167,30 @@
 
 <script>
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbztuN4_muVke5ZhhpDJmLrxFJJinMb74P0T-P2LTP3ggXJCBqPhb49JCMitSLZfjy5X/exec";
-  const REFRESH_MS = 15000;
+  const REFRESH_FAST_MS = 15000;
+  const REFRESH_SLOW_MS = 60000;
+  const PRIMARY_CLASSROOMS = [
+    "ป.1/1", "ป.1/2", "ป.1/3", "ป.1/4",
+    "ป.2/1", "ป.2/2", "ป.2/3",
+    "ป.3/1", "ป.3/2", "ป.3/3", "ป.3/4",
+    "ป.4/1", "ป.4/2", "ป.4/3",
+    "ป.5/1", "ป.5/2", "ป.5/3",
+    "ป.6/1", "ป.6/2", "ป.6/3",
+  ];
+  const PRIMARY_DEFAULT_COUNTS = {
+    "ป.1/1": 21, "ป.1/2": 19, "ป.1/3": 40, "ป.1/4": 33,
+    "ป.2/1": 28, "ป.2/2": 42, "ป.2/3": 32,
+    "ป.3/1": 24, "ป.3/2": 39, "ป.3/3": 34, "ป.3/4": 24,
+    "ป.4/1": 23, "ป.4/2": 35, "ป.4/3": 27,
+    "ป.5/1": 10, "ป.5/2": 42, "ป.5/3": 29,
+    "ป.6/1": 14, "ป.6/2": 36, "ป.6/3": 39,
+  };
+  const LOCAL_MOCK_RAW = {
+    "ประถม": [
+      { "วันที่": todayGoogle(), "เวลา": "08:10", "ห้อง": "ป.1/3", "จำนวนกิน": 38, "แพ้อาหาร": "แพ้นม:1", "สถานะ": "รับอาหาร" },
+      { "วันที่": todayGoogle(), "เวลา": "08:18", "ห้อง": "ป.5/1", "จำนวนกิน": 0, "แพ้อาหาร": "", "สถานะ": "ไม่รับอาหาร" },
+    ],
+  };
 
   function thaiDateKey(date) {
     return date.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" });
@@ -192,9 +252,19 @@
         room,
         total: parseInt(r["จำนวนกิน"]) || 0,
         allergies: textToAllergies(r["แพ้อาหาร"]),
+        source: "reported",
       };
     });
-    return Object.values(byRoom).filter(r => !r.noMeal);
+    PRIMARY_CLASSROOMS.forEach(room => {
+      if (byRoom[room]) return;
+      byRoom[room] = {
+        room,
+        total: PRIMARY_DEFAULT_COUNTS[room] || 0,
+        allergies: [],
+        source: "default",
+      };
+    });
+    return PRIMARY_CLASSROOMS.map(room => byRoom[room]).filter(r => r && !r.noMeal);
   }
 
   function render(rows) {
@@ -204,7 +274,15 @@
     document.getElementById("roomCnt").textContent = sum + " คน";
 
     document.getElementById("roomList").innerHTML = rows.length
-      ? rows.map(r => `<div class="room-row"><span class="rname">${r.room}</span><span class="rnum">${r.total}</span></div>`).join("")
+      ? rows.map(r => `
+          <div class="room-row">
+            <span class="rmain">
+              <span class="rname">${r.room}</span>
+              <span class="tag ${r.source === "default" ? "default" : "reported"}">${r.source === "default" ? "ตั้งต้น" : "แจ้งแล้ว"}</span>
+            </span>
+            <span class="rnum">${r.total}</span>
+          </div>
+        `).join("")
       : `<div class="empty">— ยังไม่มีข้อมูล —</div>`;
 
     const amap = {};
@@ -213,23 +291,83 @@
     document.getElementById("allergyList").innerHTML = entries.length
       ? entries.map(([n,c])=>`<div class="allergy-row"><span class="aname">${n}</span><span class="anum">${c}</span></div>`).join("")
       : `<div class="empty">— ไม่มีรายการพิเศษ —</div>`;
+
+    fitRoomGrid();
   }
 
-  async function fetchData() {
+  function fitRoomGrid() {
+    const grid = document.getElementById("roomList");
+    const rows = Array.from(grid.querySelectorAll(".room-row"));
+    if (!rows.length) return;
+
+    document.documentElement.style.setProperty("--room-font", "2.6vh");
+    document.documentElement.style.setProperty("--room-num-font", "3vh");
+    document.documentElement.style.setProperty("--room-pad-y", "0.6vh");
+    document.documentElement.style.setProperty("--room-gap", "0.8vh");
+    document.documentElement.style.setProperty("--tag-font", "1.55vh");
+
+    requestAnimationFrame(() => {
+      const columns = getComputedStyle(grid).gridTemplateColumns.split(" ").length || 1;
+      const rowsPerColumn = Math.ceil(rows.length / columns);
+      const available = grid.clientHeight;
+      if (!available || !rowsPerColumn) return;
+
+      const currentGap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+      const currentRow = Math.max(...rows.map(row => row.getBoundingClientRect().height));
+      const needed = currentRow * rowsPerColumn + currentGap * (rowsPerColumn - 1);
+      if (needed <= available) return;
+
+      const scale = Math.max(0.58, Math.min(1, available / needed));
+      document.documentElement.style.setProperty("--room-font", `${2.6 * scale}vh`);
+      document.documentElement.style.setProperty("--room-num-font", `${3 * scale}vh`);
+      document.documentElement.style.setProperty("--room-pad-y", `${0.6 * scale}vh`);
+      document.documentElement.style.setProperty("--room-gap", `${0.8 * scale}vh`);
+      document.documentElement.style.setProperty("--tag-font", `${1.55 * scale}vh`);
+    });
+  }
+
+  function getRefreshMode() {
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    if (minutes >= 6 * 60 && minutes < 10 * 60 + 30) {
+      return { active: true, interval: REFRESH_FAST_MS, label: "ซิงค์ทุก 15 วิ" };
+    }
+    if (minutes >= 10 * 60 + 30 && minutes < 13 * 60) {
+      return { active: true, interval: REFRESH_SLOW_MS, label: "ซิงค์ทุก 60 วิ" };
+    }
+    return { active: false, interval: REFRESH_SLOW_MS, label: "นอกเวลาซิงค์อัตโนมัติ" };
+  }
+
+  async function fetchData(force = false) {
     const dot = document.getElementById("dot");
     const syncText = document.getElementById("syncText");
+    const mode = getRefreshMode();
+    if (!force && !mode.active) {
+      syncText.textContent = mode.label + " · กดรีเฟรชเองได้";
+      return;
+    }
     dot.classList.add("loading");
     syncText.textContent = "กำลังซิงค์...";
     try {
-      const res = await fetch(SHEET_API_URL);
-      const raw = await res.json();
+      let raw = LOCAL_MOCK_RAW;
+      if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+        const res = await fetch(SHEET_API_URL);
+        raw = await res.json();
+      }
       render(processPrimary(raw));
-      syncText.textContent = "อัปเดต " + fmtTime(new Date());
+      syncText.textContent = "อัปเดต " + fmtTime(new Date()) + " · " + (force ? "รีเฟรชเอง" : mode.label);
     } catch(e) {
       syncText.textContent = "เชื่อมต่อไม่ได้ – จะลองใหม่";
     } finally {
       dot.classList.remove("loading");
     }
+  }
+
+  function scheduleFetch() {
+    const mode = getRefreshMode();
+    fetchData(false).finally(() => {
+      setTimeout(scheduleFetch, mode.active ? mode.interval : REFRESH_SLOW_MS);
+    });
   }
 
   function tickClock() {
@@ -238,9 +376,9 @@
   }
 
   tickClock();
-  fetchData();
-  setInterval(fetchData, REFRESH_MS);
+  scheduleFetch();
   setInterval(tickClock, 60000);
+  window.addEventListener("resize", fitRoomGrid);
 </script>
 </body>
 </html>

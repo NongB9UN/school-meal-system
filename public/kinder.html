@@ -15,6 +15,15 @@
       --allergy: #ef4444;
       --text: #f8fafc;
       --muted: #94a3b8;
+      --room-font: 2.6vh;
+      --room-num-font: 3vh;
+      --room-pad-y: 0.6vh;
+      --room-gap: 0.8vh;
+      --allergy-font: 2.6vh;
+      --allergy-num-font: 3vh;
+      --allergy-pad-y: 0.7vh;
+      --allergy-gap: 0.8vh;
+      --chip-font: 2vh;
     }
     html, body {
       width: 100%; height: 100%;
@@ -56,6 +65,10 @@
       padding: 1vh 1.6vw; border-radius: 12px;
       border: 2px solid #334155;
     }
+    button.nav-link {
+      font-family: inherit;
+      cursor: pointer;
+    }
 
     /* การ์ดยอดรวมด้านบน */
     .totals { display: flex; gap: 1.5vw; margin-bottom: 1.5vh; }
@@ -90,14 +103,14 @@
     .room-group.g1 h2 { color: var(--truck1); }
     .room-group.g2 h2 { color: var(--truck2); }
     .room-group h2 .cnt { font-size: 3.4vh; font-weight: 900; }
-    .room-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0.8vh; }
+    .room-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: var(--room-gap); }
     .room-row {
       display: flex; align-items: center; justify-content: space-between;
-      font-size: 2.6vh; padding: 0.6vh 0.8vw;
+      font-size: var(--room-font); padding: var(--room-pad-y) 0.8vw;
       background: #0f172a; border-radius: 10px;
     }
     .room-row .rname { font-weight: 700; }
-    .room-row .rnum  { font-weight: 900; font-size: 3vh; }
+    .room-row .rnum  { font-weight: 900; font-size: var(--room-num-font); }
     .g1 .room-row .rnum { color: var(--truck1); }
     .g2 .room-row .rnum { color: var(--truck2); }
 
@@ -111,10 +124,10 @@
       font-size: 2.8vh; font-weight: 800; color: var(--allergy);
       margin-bottom: 1vh; padding-bottom: 1vh; border-bottom: 2px solid #334155;
     }
-    .allergy-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0.8vh; }
+    .allergy-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: var(--allergy-gap); }
     .allergy-row {
       display: flex; align-items: center; justify-content: space-between;
-      gap: 0.9vw; font-size: 2.6vh; padding: 0.7vh 0.9vw;
+      gap: 0.9vw; font-size: var(--allergy-font); padding: var(--allergy-pad-y) 0.9vw;
       background: #0f172a; border-radius: 10px;
     }
     .allergy-row .aname {
@@ -123,15 +136,34 @@
     }
     .truck-chips { display: flex; gap: 0.5vw; flex: 0 0 auto; flex-wrap: nowrap; }
     .truck-chip {
-      font-size: 2vh; font-weight: 900; padding: 0.35vh 0.7vw;
+      font-size: var(--chip-font); font-weight: 900; padding: 0.35vh 0.7vw;
       border-radius: 999px; white-space: nowrap;
     }
     .truck-chip.t1 { color: #dbeafe; background: rgba(59, 130, 246, 0.28); border: 2px solid var(--truck1); }
     .truck-chip.t2 { color: #dcfce7; background: rgba(34, 197, 94, 0.28); border: 2px solid var(--truck2); }
-    .allergy-row .anum { flex: 0 0 3.5vw; text-align: right; font-weight: 900; font-size: 3vh; color: var(--allergy); }
+    .allergy-row .anum { flex: 0 0 3.5vw; text-align: right; font-weight: 900; font-size: var(--allergy-num-font); color: var(--allergy); }
     .empty { color: var(--muted); font-size: 2.2vh; text-align: center; margin-top: 2vh; }
 
     .clock { font-size: 2.1vh; color: var(--muted); }
+
+    @media (max-height: 820px) {
+      body { padding: 1.1vh 1.5vw; }
+      .topbar { margin-bottom: 0.8vh; }
+      .title { font-size: 3.3vh; }
+      .title .badge { font-size: 1.9vh; padding: 0.3vh 1vw; }
+      .status { font-size: 1.75vh; gap: 0.7vw; }
+      .nav-link { font-size: 1.65vh; padding: 0.65vh 1.1vw; border-radius: 9px; }
+      .totals { margin-bottom: 0.8vh; }
+      .total-card { border-radius: 14px; padding: 0.9vh 1vw; }
+      .total-card .label { font-size: 2vh; margin-bottom: 0.25vh; }
+      .total-card .num { font-size: 6.7vh; }
+      .total-card .sub { font-size: 1.6vh; margin-top: 0.2vh; }
+      .room-group,
+      .allergy-col { border-radius: 14px; padding: 1vh 0.9vw; }
+      .room-group h2,
+      .allergy-col h2 { font-size: 2.2vh; margin-bottom: 0.6vh; padding-bottom: 0.6vh; }
+      .room-group h2 .cnt { font-size: 2.6vh; }
+    }
   </style>
 </head>
 <body>
@@ -141,6 +173,7 @@
       <span class="clock" id="clock"></span>
       <span class="dot" id="dot"></span>
       <span id="syncText">กำลังโหลด...</span>
+      <button class="nav-link" type="button" onclick="fetchData(true)">รีเฟรช</button>
       <a class="nav-link" href="./primary.html">ไปจอประถม →</a>
     </div>
   </div>
@@ -183,7 +216,8 @@
 <script>
   // ── ตั้งค่า ─────────────────────────────────────────────
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbztuN4_muVke5ZhhpDJmLrxFJJinMb74P0T-P2LTP3ggXJCBqPhb49JCMitSLZfjy5X/exec";
-  const REFRESH_MS = 15000; // 15 วินาที
+  const REFRESH_FAST_MS = 15000;
+  const REFRESH_SLOW_MS = 60000;
 
   // ── helper ──────────────────────────────────────────────
   function thaiDateKey(date) {
@@ -297,23 +331,93 @@
           </div>
         `).join("")
       : `<div class="empty">— ไม่มีรายการพิเศษ —</div>`;
+
+    fitLists();
   }
 
-  async function fetchData() {
+  function fitStack(containerId, itemSelector, vars) {
+    const list = document.getElementById(containerId);
+    const items = Array.from(list.querySelectorAll(itemSelector));
+    if (!items.length) return 1;
+
+    const gap = parseFloat(getComputedStyle(list).rowGap) || 0;
+    const itemHeight = Math.max(...items.map(item => item.getBoundingClientRect().height));
+    const needed = itemHeight * items.length + gap * (items.length - 1);
+    const available = list.clientHeight;
+    if (!available || needed <= available) return 1;
+
+    return Math.max(0.58, Math.min(1, available / needed));
+  }
+
+  function fitLists() {
+    document.documentElement.style.setProperty("--room-font", "2.6vh");
+    document.documentElement.style.setProperty("--room-num-font", "3vh");
+    document.documentElement.style.setProperty("--room-pad-y", "0.6vh");
+    document.documentElement.style.setProperty("--room-gap", "0.8vh");
+    document.documentElement.style.setProperty("--allergy-font", "2.6vh");
+    document.documentElement.style.setProperty("--allergy-num-font", "3vh");
+    document.documentElement.style.setProperty("--allergy-pad-y", "0.7vh");
+    document.documentElement.style.setProperty("--allergy-gap", "0.8vh");
+    document.documentElement.style.setProperty("--chip-font", "2vh");
+
+    requestAnimationFrame(() => {
+      const roomScale = Math.min(
+        fitStack("t1List", ".room-row"),
+        fitStack("t2List", ".room-row")
+      );
+      const allergyScale = fitStack("allergyList", ".allergy-row");
+
+      document.documentElement.style.setProperty("--room-font", `${2.6 * roomScale}vh`);
+      document.documentElement.style.setProperty("--room-num-font", `${3 * roomScale}vh`);
+      document.documentElement.style.setProperty("--room-pad-y", `${0.6 * roomScale}vh`);
+      document.documentElement.style.setProperty("--room-gap", `${0.8 * roomScale}vh`);
+      document.documentElement.style.setProperty("--allergy-font", `${2.6 * allergyScale}vh`);
+      document.documentElement.style.setProperty("--allergy-num-font", `${3 * allergyScale}vh`);
+      document.documentElement.style.setProperty("--allergy-pad-y", `${0.7 * allergyScale}vh`);
+      document.documentElement.style.setProperty("--allergy-gap", `${0.8 * allergyScale}vh`);
+      document.documentElement.style.setProperty("--chip-font", `${2 * allergyScale}vh`);
+    });
+  }
+
+  function getRefreshMode() {
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    if (minutes >= 6 * 60 && minutes < 10 * 60 + 30) {
+      return { active: true, interval: REFRESH_FAST_MS, label: "ซิงค์ทุก 15 วิ" };
+    }
+    if (minutes >= 10 * 60 + 30 && minutes < 13 * 60) {
+      return { active: true, interval: REFRESH_SLOW_MS, label: "ซิงค์ทุก 60 วิ" };
+    }
+    return { active: false, interval: REFRESH_SLOW_MS, label: "นอกเวลาซิงค์อัตโนมัติ" };
+  }
+
+  async function fetchData(force = false) {
     const dot = document.getElementById("dot");
     const syncText = document.getElementById("syncText");
+    const mode = getRefreshMode();
+    if (!force && !mode.active) {
+      syncText.textContent = mode.label + " · กดรีเฟรชเองได้";
+      return;
+    }
     dot.classList.add("loading");
     syncText.textContent = "กำลังซิงค์...";
     try {
       const res = await fetch(SHEET_API_URL);
       const raw = await res.json();
       render(processKinder(raw));
-      syncText.textContent = "อัปเดต " + fmtTime(new Date());
+      syncText.textContent = "อัปเดต " + fmtTime(new Date()) + " · " + (force ? "รีเฟรชเอง" : mode.label);
     } catch (e) {
       syncText.textContent = "เชื่อมต่อไม่ได้ – จะลองใหม่";
     } finally {
       dot.classList.remove("loading");
     }
+  }
+
+  function scheduleFetch() {
+    const mode = getRefreshMode();
+    fetchData(false).finally(() => {
+      setTimeout(scheduleFetch, mode.active ? mode.interval : REFRESH_SLOW_MS);
+    });
   }
 
   function tickClock() {
@@ -322,9 +426,9 @@
   }
 
   tickClock();
-  fetchData();
-  setInterval(fetchData, REFRESH_MS);
+  scheduleFetch();
   setInterval(tickClock, 60000);
+  window.addEventListener("resize", fitLists);
 </script>
 </body>
 </html>

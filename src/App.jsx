@@ -60,6 +60,15 @@ const PRIMARY_CLASSROOMS = [
   "ป.6/1", "ป.6/2", "ป.6/3",
 ];
 
+const PRIMARY_DEFAULT_COUNTS = {
+  "ป.1/1": 21, "ป.1/2": 19, "ป.1/3": 40, "ป.1/4": 33,
+  "ป.2/1": 28, "ป.2/2": 42, "ป.2/3": 32,
+  "ป.3/1": 24, "ป.3/2": 39, "ป.3/3": 34, "ป.3/4": 24,
+  "ป.4/1": 23, "ป.4/2": 35, "ป.4/3": 27,
+  "ป.5/1": 10, "ป.5/2": 42, "ป.5/3": 29,
+  "ป.6/1": 14, "ป.6/2": 36, "ป.6/3": 39,
+};
+
 const TRUCK_DEFAULT = {
   "เด็กเล็ก 1": 1, "เด็กเล็ก 2": 1,
   "อ.1/1": 1, "อ.1/3": 1, "อ.1/4": 1, "อ.1/5": 1,
@@ -79,6 +88,14 @@ const ALLERGY_PRESETS = [
 const MEAL_STATUS = {
   EATING: "รับอาหาร",
   NO_MEAL: "ไม่รับอาหาร",
+};
+
+const LOCAL_MOCK_RAW = {
+  "อนุบาล": [],
+  "ประถม": [
+    { "วันที่": todayGoogle(), "เวลา": "08:10", "เทอม": "เทอม 1", "สัปดาห์ที่": 3, "ระดับชั้น": "ประถม", "ห้อง": "ป.1/3", "จำนวนกิน": 38, "แพ้อาหาร": "แพ้นม:1", "ชื่อครู": "ครูตัวอย่าง", "สถานะ": "รับอาหาร", "หมายเหตุ": "" },
+    { "วันที่": todayGoogle(), "เวลา": "08:18", "เทอม": "เทอม 1", "สัปดาห์ที่": 3, "ระดับชั้น": "ประถม", "ห้อง": "ป.5/1", "จำนวนกิน": 0, "แพ้อาหาร": "", "ชื่อครู": "ครูตัวอย่าง", "สถานะ": "ไม่รับอาหาร", "หมายเหตุ": "ไปกิจกรรม" },
+  ],
 };
 
 function fmtTime(date) {
@@ -145,6 +162,19 @@ function todayGoogle() {
   }).formatToParts(now);
   const byType = Object.fromEntries(parts.map(part => [part.type, part.value]));
   return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
+function getDefaultTotal(level, classroom) {
+  if (level === "ประถม") return PRIMARY_DEFAULT_COUNTS[classroom] || 0;
+  return 20;
+}
+
+function classroomOrder(classroom) {
+  const kinderIndex = KINDERGARTEN_CLASSROOMS.indexOf(classroom);
+  if (kinderIndex >= 0) return kinderIndex;
+  const primaryIndex = PRIMARY_CLASSROOMS.indexOf(classroom);
+  if (primaryIndex >= 0) return KINDERGARTEN_CLASSROOMS.length + primaryIndex;
+  return 999;
 }
 
 // ─── Confirm Modal ───────────────────────────────────────────────────────────
@@ -229,6 +259,7 @@ function TeacherForm({ onSubmit, submissions, user }) {
   const handleLevelChange = (val) => {
     setLevel(val);
     setClassroom("");
+    setTotal(getDefaultTotal(val, ""));
     setDoneClass(null);
     setEditMode(false);
     setAllergies([]);
@@ -248,7 +279,7 @@ function TeacherForm({ onSubmit, submissions, user }) {
       setMealStatus(prev.status || MEAL_STATUS.EATING);
       setNoMealNote(prev.note || "");
     } else {
-      setTotal(20);
+      setTotal(getDefaultTotal(level, val));
       setTruck(TRUCK_DEFAULT[val] || 1);
       setAllergies([]);
       setMealStatus(MEAL_STATUS.EATING);
@@ -315,6 +346,7 @@ function TeacherForm({ onSubmit, submissions, user }) {
         edited: editMode,
         teacherName: user?.name || "ไม่ระบุ",
         teacherId: user?.id || "unknown",
+        source: "reported",
       });
       setDoneClass(classroom);
       setShowConfirm(false);
@@ -583,6 +615,8 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
   const activeSubmissions = submissions.filter(s => s.status !== MEAL_STATUS.NO_MEAL);
   const kinder = activeSubmissions.filter(s => s.level === "อนุบาล");
   const primary = activeSubmissions.filter(s => s.level === "ประถม");
+  const reportedCount = submissions.filter(s => s.source !== "default").length;
+  const primaryDefaultCount = primary.filter(s => s.source === "default").length;
 
   const truck1   = kinder.filter(s => s.truck === 1);
   const truck2   = kinder.filter(s => s.truck === 2);
@@ -592,8 +626,8 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
   const totalAll = total1 + total2 + primaryTotal;
 
   const allClassrooms = [...KINDERGARTEN_CLASSROOMS, ...PRIMARY_CLASSROOMS];
-  const done     = submissions.length;
-  const pending  = allClassrooms.filter(c => !submissions.find(s => s.classroom === c));
+  const done     = reportedCount;
+  const pending  = KINDERGARTEN_CLASSROOMS.filter(c => !submissions.find(s => s.classroom === c));
   const pct      = Math.round((done / allClassrooms.length) * 100);
 
   const allergyMap = {};
@@ -664,7 +698,7 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
         <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 text-center">
           <p className="text-indigo-600 font-semibold text-sm mb-1">ยอดรวมประถม</p>
           <p className="text-4xl font-black text-indigo-700">{primaryTotal}</p>
-          <p className="text-indigo-400 text-xs mt-1">{primary.length} ห้อง</p>
+          <p className="text-indigo-400 text-xs mt-1">{primary.length} ห้อง · ตั้งต้น {primaryDefaultCount} ห้อง</p>
         </div>
       </div>
 
@@ -725,7 +759,7 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
       {/* ห้องที่รอ */}
       {pending.length > 0 && (
         <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-          <p className="text-gray-500 font-semibold text-sm mb-2">⏳ รอข้อมูล ({pending.length} ห้อง)</p>
+          <p className="text-gray-500 font-semibold text-sm mb-2">⏳ รอข้อมูลอนุบาล ({pending.length} ห้อง)</p>
           <div className="flex flex-wrap gap-1">
             {pending.map(c => (
               <span key={c} className="text-xs bg-white border border-gray-200 text-gray-400 px-2 py-1 rounded-lg">{c}</span>
@@ -745,15 +779,18 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
 }
 
 function ClassroomRow({ s, color }) {
+  const isDefault = s.source === "default";
   return (
     <div className="px-4 py-3 flex items-start justify-between border-b border-gray-50 last:border-0">
       <div>
         <div className="flex items-center gap-2">
           <p className="font-semibold text-gray-800">{s.classroom}</p>
+          {isDefault && <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">ตั้งต้น</span>}
+          {!isDefault && s.level === "ประถม" && <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">แจ้งแล้ว</span>}
           {s.edited && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">แก้ไขแล้ว</span>}
         </div>
         <p className="text-xs text-gray-300 mt-0.5">
-          ส่งเมื่อ {fmtTime(s.time)} · {s.teacherName}
+          {isDefault ? "ใช้ยอดตั้งต้นจากส่วนกลาง" : `ส่งเมื่อ ${fmtTime(s.time)} · ${s.teacherName}`}
         </p>
         {s.allergies.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
@@ -810,12 +847,30 @@ function processSheetData(raw) {
         note,
         teacherName: r["ชื่อครู"] || "ไม่ระบุ",
         time: new Date(),      // เวลาแสดงผลคร่าวๆ (ข้อมูลจริงอยู่ใน Sheet)
+        source: "reported",
         edited: false,
       };
     });
   });
 
-  return Object.values(byClassroom);
+  PRIMARY_CLASSROOMS.forEach(classroom => {
+    if (byClassroom[classroom]) return;
+    byClassroom[classroom] = {
+      classroom,
+      level: "ประถม",
+      total: PRIMARY_DEFAULT_COUNTS[classroom] || 0,
+      truck: "",
+      allergies: [],
+      status: MEAL_STATUS.EATING,
+      note: "",
+      teacherName: "ยอดตั้งต้น",
+      time: new Date(),
+      source: "default",
+      edited: false,
+    };
+  });
+
+  return Object.values(byClassroom).sort((a, b) => classroomOrder(a.classroom) - classroomOrder(b.classroom));
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
@@ -831,8 +886,11 @@ export default function App() {
   const fetchLive = async () => {
     setLoadingLive(true);
     try {
-      const res = await fetch(SHEET_API_URL);
-      const raw = await res.json();
+      let raw = LOCAL_MOCK_RAW;
+      if (!import.meta.env.DEV) {
+        const res = await fetch(SHEET_API_URL);
+        raw = await res.json();
+      }
       setLiveData(processSheetData(raw));
       setLastSync(new Date());
     } catch {
@@ -856,8 +914,7 @@ export default function App() {
     setSubmissions(prev => [...prev.filter(s => s.classroom !== data.classroom), data]);
   };
 
-  const allClassrooms = [...KINDERGARTEN_CLASSROOMS, ...PRIMARY_CLASSROOMS];
-  const pending = allClassrooms.length - liveData.length;
+  const pending = KINDERGARTEN_CLASSROOMS.filter(c => !liveData.find(s => s.classroom === c)).length;
 
   return (
     <div className="min-h-screen bg-orange-50">
