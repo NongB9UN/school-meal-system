@@ -65,6 +65,10 @@
       display: flex; flex-direction: column; align-items: center;
       border: 3px solid var(--primary);
     }
+    .total-card.lower { border-color: #06b6d4; }
+    .total-card.lower .num { color: #22d3ee; }
+    .total-card.upper { border-color: #8b5cf6; }
+    .total-card.upper .num { color: #a78bfa; }
     .total-card .label { font-size: 2.6vh; color: var(--muted); font-weight: 700; margin-bottom: 0.5vh; }
     .total-card .num   { font-size: 9vh; font-weight: 900; line-height: 1; color: var(--primary); }
     .total-card .sub   { font-size: 2vh; color: var(--muted); margin-top: 0.5vh; }
@@ -152,6 +156,16 @@
       <div class="num" id="sumTotal">0</div>
       <div class="sub" id="sumRooms">0 ห้อง</div>
     </div>
+    <div class="total-card lower">
+      <div class="label">ประถมต้น</div>
+      <div class="num" id="lowerTotal">0</div>
+      <div class="sub" id="lowerRooms">ป.1-ป.3</div>
+    </div>
+    <div class="total-card upper">
+      <div class="label">ประถมปลาย</div>
+      <div class="num" id="upperTotal">0</div>
+      <div class="sub" id="upperRooms">ป.4-ป.6</div>
+    </div>
   </div>
 
   <div class="bottom">
@@ -182,9 +196,11 @@
     "ป.2/1": 28, "ป.2/2": 42, "ป.2/3": 32,
     "ป.3/1": 24, "ป.3/2": 39, "ป.3/3": 34, "ป.3/4": 24,
     "ป.4/1": 23, "ป.4/2": 35, "ป.4/3": 27,
-    "ป.5/1": 10, "ป.5/2": 42, "ป.5/3": 29,
+    "ป.5/1": 10, "ป.5/2": 42, "ป.5/3": 30,
     "ป.6/1": 14, "ป.6/2": 36, "ป.6/3": 39,
   };
+  const PRIMARY_LOWER_GRADES = ["ป.1", "ป.2", "ป.3"];
+  const PRIMARY_UPPER_GRADES = ["ป.4", "ป.5", "ป.6"];
   const LOCAL_MOCK_RAW = {
     "ประถม": [
       { "วันที่": todayGoogle(), "เวลา": "08:10", "ห้อง": "ป.1/3", "จำนวนกิน": 38, "แพ้อาหาร": "แพ้นม:1", "สถานะ": "รับอาหาร" },
@@ -269,8 +285,16 @@
 
   function render(rows) {
     const sum = rows.reduce((s,r)=>s+r.total,0);
+    const lowerRows = rows.filter(r => PRIMARY_LOWER_GRADES.some(grade => r.room.startsWith(grade)));
+    const upperRows = rows.filter(r => PRIMARY_UPPER_GRADES.some(grade => r.room.startsWith(grade)));
+    const lowerSum = lowerRows.reduce((s,r)=>s+r.total,0);
+    const upperSum = upperRows.reduce((s,r)=>s+r.total,0);
     document.getElementById("sumTotal").textContent = sum;
     document.getElementById("sumRooms").textContent = rows.length + " ห้อง";
+    document.getElementById("lowerTotal").textContent = lowerSum;
+    document.getElementById("lowerRooms").textContent = lowerRows.length + " ห้อง · ป.1-ป.3";
+    document.getElementById("upperTotal").textContent = upperSum;
+    document.getElementById("upperRooms").textContent = upperRows.length + " ห้อง · ป.4-ป.6";
     document.getElementById("roomCnt").textContent = sum + " คน";
 
     document.getElementById("roomList").innerHTML = rows.length

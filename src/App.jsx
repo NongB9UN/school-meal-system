@@ -65,9 +65,12 @@ const PRIMARY_DEFAULT_COUNTS = {
   "ป.2/1": 28, "ป.2/2": 42, "ป.2/3": 32,
   "ป.3/1": 24, "ป.3/2": 39, "ป.3/3": 34, "ป.3/4": 24,
   "ป.4/1": 23, "ป.4/2": 35, "ป.4/3": 27,
-  "ป.5/1": 10, "ป.5/2": 42, "ป.5/3": 29,
+  "ป.5/1": 10, "ป.5/2": 42, "ป.5/3": 30,
   "ป.6/1": 14, "ป.6/2": 36, "ป.6/3": 39,
 };
+
+const PRIMARY_LOWER_GRADES = ["ป.1", "ป.2", "ป.3"];
+const PRIMARY_UPPER_GRADES = ["ป.4", "ป.5", "ป.6"];
 
 const TRUCK_DEFAULT = {
   "เด็กเล็ก 1": 1, "เด็กเล็ก 2": 1,
@@ -623,6 +626,10 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
   const total1   = truck1.reduce((sum, s) => sum + s.total, 0);
   const total2   = truck2.reduce((sum, s) => sum + s.total, 0);
   const primaryTotal = primary.reduce((sum, s) => sum + s.total, 0);
+  const primaryLower = primary.filter(s => PRIMARY_LOWER_GRADES.some(grade => s.classroom.startsWith(grade)));
+  const primaryUpper = primary.filter(s => PRIMARY_UPPER_GRADES.some(grade => s.classroom.startsWith(grade)));
+  const primaryLowerTotal = primaryLower.reduce((sum, s) => sum + s.total, 0);
+  const primaryUpperTotal = primaryUpper.reduce((sum, s) => sum + s.total, 0);
   const totalAll = total1 + total2 + primaryTotal;
 
   const allClassrooms = [...KINDERGARTEN_CLASSROOMS, ...PRIMARY_CLASSROOMS];
@@ -695,10 +702,22 @@ function KitchenDashboard({ submissions, loading, lastSync, onRefresh }) {
       {/* สรุปประถม */}
       <div>
         <p className="text-sm font-bold text-gray-500 mb-2 px-1">🎒 ประถม</p>
-        <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 text-center">
+        <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 text-center mb-3">
           <p className="text-indigo-600 font-semibold text-sm mb-1">ยอดรวมประถม</p>
           <p className="text-4xl font-black text-indigo-700">{primaryTotal}</p>
           <p className="text-indigo-400 text-xs mt-1">{primary.length} ห้อง · ตั้งต้น {primaryDefaultCount} ห้อง</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-cyan-50 border-2 border-cyan-200 rounded-2xl p-4 text-center">
+            <p className="text-cyan-700 font-semibold text-sm mb-1">ประถมต้น</p>
+            <p className="text-4xl font-black text-cyan-700">{primaryLowerTotal}</p>
+            <p className="text-cyan-500 text-xs mt-1">ป.1-ป.3 · {primaryLower.length} ห้อง</p>
+          </div>
+          <div className="bg-violet-50 border-2 border-violet-200 rounded-2xl p-4 text-center">
+            <p className="text-violet-700 font-semibold text-sm mb-1">ประถมปลาย</p>
+            <p className="text-4xl font-black text-violet-700">{primaryUpperTotal}</p>
+            <p className="text-violet-500 text-xs mt-1">ป.4-ป.6 · {primaryUpper.length} ห้อง</p>
+          </div>
         </div>
       </div>
 
@@ -878,7 +897,7 @@ export default function App() {
   const { user, ready } = useLiff();
   const [tab, setTab]   = useState("teacher");
   const [submissions, setSubmissions] = useState([]);      // ฝั่งครู (state ในเครื่อง)
-  const [liveData, setLiveData]       = useState([]);      // ฝั่งห้องครัว (จาก Sheets)
+  const [liveData, setLiveData]       = useState(() => import.meta.env.DEV ? processSheetData(LOCAL_MOCK_RAW) : []);      // ฝั่งห้องครัว (จาก Sheets)
   const [loadingLive, setLoadingLive] = useState(false);
   const [lastSync, setLastSync]       = useState(null);
 
